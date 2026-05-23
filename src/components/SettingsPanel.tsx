@@ -4,11 +4,13 @@ import {
   X, Settings2, Clock, AlertTriangle, Shield, Database,
   Download, Upload, Trash2, RefreshCw, Cloud, Eye, EyeOff,
   Code2, RotateCcw, Save, CheckCircle2, AlertCircle, Wrench,
+  UserPlus, Edit3, ShieldCheck, ChevronDown,
 } from 'lucide-react';
 import type { AppSettings } from '../types';
 import { DEFAULT_SETTINGS } from '../types';
 import { useTheme } from '../ThemeContext';
 import { useAuth } from '../AuthContext';
+import type { UserRole } from '../AuthContext';
 import { CLOUD_ENABLED } from '../db/supabase';
 
 interface SettingsPanelProps {
@@ -25,6 +27,7 @@ interface SettingsPanelProps {
 }
 
 type Tab = 'time' | 'security' | 'data' | 'cloud' | 'advanced';
+type SecuritySection = 'passwords' | 'addUser' | 'changeUsername' | 'changeRole';
 
 export default function SettingsPanel({
   isOpen, settings, cloudEnabled, lastSynced,
@@ -32,7 +35,7 @@ export default function SettingsPanel({
 }: SettingsPanelProps) {
   const { theme } = useTheme();
   const isGlass = theme === 'glass';
-  const { isAdmin, changePassword, getAllUsers } = useAuth();
+  const { isAdmin, changePassword, getAllUsers, addUser, changeUsername, changeUserRole } = useAuth();
 
   const [activeTab, setActiveTab] = useState<Tab>('time');
   const [draft, setDraft] = useState<AppSettings>(settings);
@@ -44,6 +47,29 @@ export default function SettingsPanel({
   const [userPasswords, setUserPasswords] = useState<Record<string, string>>({});
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   const [pwMessage, setPwMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Security section state
+  const [securitySection, setSecuritySection] = useState<SecuritySection>('passwords');
+
+  // Add user state
+  const [newUserKey, setNewUserKey] = useState('');
+  const [newUserDisplay, setNewUserDisplay] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserRole, setNewUserRole] = useState<UserRole>('user');
+  const [addUserBusy, setAddUserBusy] = useState(false);
+  const [addUserMessage, setAddUserMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Change username state
+  const [editUsernameKey, setEditUsernameKey] = useState('');
+  const [editUsernameValue, setEditUsernameValue] = useState('');
+  const [editUsernameBusy, setEditUsernameBusy] = useState(false);
+  const [editUsernameMessage, setEditUsernameMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Change role state
+  const [editRoleKey, setEditRoleKey] = useState('');
+  const [editRoleValue, setEditRoleValue] = useState<UserRole>('user');
+  const [editRoleBusy, setEditRoleBusy] = useState(false);
+  const [editRoleMessage, setEditRoleMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const [showDebug, setShowDebug] = useState(false);
   const [debugText, setDebugText] = useState('');
@@ -60,7 +86,14 @@ export default function SettingsPanel({
   ];
 
   const visibleTabs = tabs.filter(t => !t.adminOnly || isAdmin);
-  const users = useMemo(() => getAllUsers(), [getAllUsers]);
+  const users = useMemo(() => getAllUsers(), [getAllUsers, addUserMessage, editUsernameMessage, editRoleMessage]);
+
+  const securityTabs: Array<{ id: SecuritySection; label: string; icon: React.ComponentType<{ className?: string }> }> = [
+    { id: 'passwords', label: 'Passwords', icon: Shield },
+    { id: 'addUser', label: 'Add User', icon: UserPlus },
+    { id: 'changeUsername', label: 'Username', icon: Edit3 },
+    { id: 'changeRole', label: 'Role', icon: ShieldCheck },
+  ];
 
   const handleSaveTime = () => {
     onSaveSettings(draft);
@@ -118,6 +151,86 @@ export default function SettingsPanel({
       setUserPasswords(prev => ({ ...prev, [userKey]: '' }));
     } else {
       setPwMessage({ type: 'error', text: 'Failed to update password' });
+    }
+  };
+
+  // ── Add User handler ──
+  const handleAddUser = async () => {
+    setAddUserMessage(null);
+    if (!newUserKey.trim()) {
+      setAddUserMessage({ type: 'error', text: 'Login key (username) is required' });
+      return;
+    }
+    if (!newUserDisplay.trim()) {
+      setAddUserMessage({ type: 'error', text: 'Display name is required' });
+      return;
+    }
+    if (!newUserPassword.trim()) {
+      setAddUserMessage({ type: 'error', text: 'Password is required' });
+      return;
+    }
+    if (newUserPassword.length < 6) {
+      setAddUserMessage({ type: 'error', text: 'Password must be at least 6 characters' });
+      return;
+    }
+    setAddUserBusy(true);
+    const result = await addUser(newUserKey, newUserDisplay, newUserPassword, newUserRole);
+    setAddUserBusy(false);
+    if (result.success) {
+      setAddUserMessage({ type: 'success', text: `User "${newUserDisplay.trim()}" added successfully` });
+      setNewUserKey('');
+      setNewUserDisplay('');
+      setNewUserPassword('');
+      setNewUserRole('user');
+    } else {
+      setAddUserMessage({ type: 'error', text: result.error || 'Failed to add user' });
+    }
+  };
+
+  // ── Change Username handler ──
+  const handleChangeUsername = async () => {
+    setEditUsernameMessage(null);
+    if (!editUsernameKey) {
+      setEditUsernameMessage({ type: 'error', text: 'Please select a user' });
+      return;
+    }
+    if (!editUsernameValue.trim()) {
+      setEditUsernameMessage({ type: 'error', text: 'Display name cannot be empty' });
+      return;
+    }
+    setEditUsernameBusy(true);
+    const result = await changeUsername(editUsernameKey, editUsernameValue);
+    setEditUsernameBusy(false);
+    if (result.success) {
+      setEditUsernameMessage({ type: 'success', text: `Username updated to "${editUsernameValue.trim()}"` });
+      setEditUsernameValue('');
+      setEditUsernameKey('');
+    } else {
+      setEditUsernameMessage({ type: 'error', text: result.error || 'Failed to change username' });
+    }
+  };
+
+  // ── Change Role handler ──
+  const handleChangeRole = async () => {
+    setEditRoleMessage(null);
+    if (!editRoleKey) {
+      setEditRoleMessage({ type: 'error', text: 'Please select a user' });
+      return;
+    }
+    if (editRoleKey === 'admin') {
+      setEditRoleMessage({ type: 'error', text: 'Cannot change the admin role' });
+      return;
+    }
+    setEditRoleBusy(true);
+    const result = await changeUserRole(editRoleKey, editRoleValue);
+    setEditRoleBusy(false);
+    if (result.success) {
+      const display = users.find(u => u.key === editRoleKey)?.display || editRoleKey;
+      setEditRoleMessage({ type: 'success', text: `${display} is now ${editRoleValue === 'admin' ? 'an Admin' : 'a User'}` });
+      setEditRoleKey('');
+      setEditRoleValue('user');
+    } else {
+      setEditRoleMessage({ type: 'error', text: result.error || 'Failed to change role' });
     }
   };
 
@@ -182,6 +295,25 @@ export default function SettingsPanel({
     ? 'w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200/80 text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300 transition-all'
     : 'w-full px-3 py-2.5 border border-[#e5e5e5] rounded-lg bg-[#fafafa] text-[#0f0f0f] font-semibold focus:outline-none focus:border-[#0f0f0f] focus:bg-white focus:shadow-[0_0_0_3px_rgba(15,15,15,0.05)] transition-all';
 
+  const selectCls = isGlass
+    ? 'w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200/80 text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300 transition-all appearance-none cursor-pointer'
+    : 'w-full px-3 py-2.5 border border-[#e5e5e5] rounded-lg bg-[#fafafa] text-[#0f0f0f] font-semibold focus:outline-none focus:border-[#0f0f0f] focus:bg-white focus:shadow-[0_0_0_3px_rgba(15,15,15,0.05)] transition-all appearance-none cursor-pointer';
+
+  const primaryBtnCls = isGlass
+    ? 'bg-gray-900 text-white hover:bg-gray-800'
+    : 'bg-[#0f0f0f] text-white hover:bg-[#333]';
+
+  const secSubTabCls = (active: boolean) => isGlass
+    ? `px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${active ? 'bg-gray-900 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'}`
+    : `px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${active ? 'bg-[#0f0f0f] text-white' : 'bg-[#f5f5f5] text-[#999] hover:bg-[#eee] hover:text-[#666]'}`;
+
+  const cardCls = isGlass
+    ? 'p-4 rounded-xl bg-gray-900/5 border border-gray-200/50'
+    : 'p-4 rounded-xl bg-[#fafafa] border border-[#e5e5e5]';
+
+  const labelCls = isGlass ? 'text-gray-500' : 'text-[#666]';
+  const headingCls = isGlass ? 'text-gray-900' : 'text-[#0f0f0f]';
+
   const content = (
     <>
       {activeTab === 'time' && (
@@ -191,7 +323,7 @@ export default function SettingsPanel({
           <Field label="Full Block Threshold" hint="Penalty >= this triggers full day block" icon={AlertTriangle}><input type="number" min={1} max={480} value={draft.fullBlockThreshold} onChange={e => setDraft({ ...draft, fullBlockThreshold: Math.max(1, parseInt(e.target.value) || 1) })} className={inputCls} /></Field>
           <Field label="Carry Forward" hint="Carry excess penalty to next days" icon={AlertTriangle}><button onClick={() => setDraft({ ...draft, carryForwardEnabled: !draft.carryForwardEnabled })} className={`relative w-12 h-7 rounded-full transition-colors ${draft.carryForwardEnabled ? 'bg-green-500' : 'bg-gray-300'}`}><motion.div animate={{ x: draft.carryForwardEnabled ? 22 : 2 }} className="absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-md" /></button></Field>
           <div className="flex gap-2 pt-3">
-            <button onClick={handleSaveTime} className={`flex-1 py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all ${isGlass ? 'bg-gray-900 text-white hover:bg-gray-800' : 'bg-[#0f0f0f] text-white hover:bg-[#333]'}`}>{saved ? <><CheckCircle2 className="w-4 h-4" /> Saved</> : <><Save className="w-4 h-4" /> Save Changes</>}</button>
+            <button onClick={handleSaveTime} className={`flex-1 py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all ${primaryBtnCls}`}>{saved ? <><CheckCircle2 className="w-4 h-4" /> Saved</> : <><Save className="w-4 h-4" /> Save Changes</>}</button>
             <button onClick={handleResetSettings} className={`py-2.5 px-4 rounded-lg font-semibold text-sm flex items-center gap-2 transition-all ${isGlass ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'border border-[#e5e5e5] text-[#0f0f0f] hover:bg-[#f5f5f5]'}`}><RotateCcw className="w-4 h-4" /> Defaults</button>
           </div>
         </motion.div>
@@ -199,30 +331,291 @@ export default function SettingsPanel({
 
       {activeTab === 'security' && isAdmin && (
         <motion.div key="security" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
-          <div className={`p-4 rounded-xl ${isGlass ? 'bg-gray-900/5 border border-gray-200/50' : 'bg-[#fafafa] border border-[#e5e5e5]'}`}>
-            <h3 className={`text-sm font-bold mb-3 ${isGlass ? 'text-gray-900' : 'text-[#0f0f0f]'}`}>Admin Password</h3>
-            <div className="space-y-2">
-              <PasswordInput label="New password" value={adminPw} onChange={setAdminPw} show={showPasswords['admin-new']} onToggle={() => setShowPasswords(p => ({ ...p, 'admin-new': !p['admin-new'] }))} />
-              <PasswordInput label="Confirm" value={adminPwConfirm} onChange={setAdminPwConfirm} show={showPasswords['admin-confirm']} onToggle={() => setShowPasswords(p => ({ ...p, 'admin-confirm': !p['admin-confirm'] }))} />
-              <button onClick={handleChangeAdminPassword} className={`w-full py-2 rounded-lg font-semibold text-sm ${isGlass ? 'bg-gray-900 text-white hover:bg-gray-800' : 'bg-[#0f0f0f] text-white hover:bg-[#333]'}`}>
-                {busyPasswordKey === 'admin' ? 'Updating...' : 'Update Admin Password'}
-              </button>
-            </div>
+          {/* Sub-tabs for security sections */}
+          <div className="flex flex-wrap gap-1.5">
+            {securityTabs.map(st => {
+              const Icon = st.icon;
+              return (
+                <button
+                  key={st.id}
+                  onClick={() => setSecuritySection(st.id)}
+                  className={secSubTabCls(securitySection === st.id)}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Icon className="w-3 h-3" />
+                    {st.label}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
-          {users.filter(u => u.role === 'user').map(u => (
-            <div key={u.key} className={`p-4 rounded-xl ${isGlass ? 'bg-gray-900/5 border border-gray-200/50' : 'bg-[#fafafa] border border-[#e5e5e5]'}`}>
-              <h3 className={`text-sm font-bold mb-3 ${isGlass ? 'text-gray-900' : 'text-[#0f0f0f]'}`}>{u.display}'s Password</h3>
-              <div className="space-y-2">
-                <PasswordInput label="New password" value={userPasswords[u.key] || ''} onChange={v => setUserPasswords(p => ({ ...p, [u.key]: v }))} show={showPasswords[u.key]} onToggle={() => setShowPasswords(p => ({ ...p, [u.key]: !p[u.key] }))} />
-                <button onClick={() => handleChangeUserPassword(u.key)} className={`w-full py-2 rounded-lg font-semibold text-sm ${isGlass ? 'bg-gray-900 text-white hover:bg-gray-800' : 'bg-[#0f0f0f] text-white hover:bg-[#333]'}`}>
-                  {busyPasswordKey === u.key ? 'Updating...' : 'Update'}
-                </button>
-              </div>
-            </div>
-          ))}
+          <AnimatePresence mode="wait">
+            {/* ═══════════ PASSWORDS SECTION ═══════════ */}
+            {securitySection === 'passwords' && (
+              <motion.div key="pw" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} className="space-y-4">
+                <div className={cardCls}>
+                  <h3 className={`text-sm font-bold mb-3 ${headingCls}`}>Admin Password</h3>
+                  <div className="space-y-2">
+                    <PasswordInput label="New password" value={adminPw} onChange={setAdminPw} show={showPasswords['admin-new']} onToggle={() => setShowPasswords(p => ({ ...p, 'admin-new': !p['admin-new'] }))} />
+                    <PasswordInput label="Confirm" value={adminPwConfirm} onChange={setAdminPwConfirm} show={showPasswords['admin-confirm']} onToggle={() => setShowPasswords(p => ({ ...p, 'admin-confirm': !p['admin-confirm'] }))} />
+                    <button onClick={handleChangeAdminPassword} className={`w-full py-2 rounded-lg font-semibold text-sm ${primaryBtnCls}`}>
+                      {busyPasswordKey === 'admin' ? 'Updating...' : 'Update Admin Password'}
+                    </button>
+                  </div>
+                </div>
 
-          {pwMessage && <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className={`text-sm font-medium rounded-lg px-3 py-2.5 flex items-center gap-2 ${pwMessage.type === 'success' ? (isGlass ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-green-50 text-green-700') : (isGlass ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-[#fee2e2] text-[#991b1b]')}`}>{pwMessage.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}{pwMessage.text}</motion.div>}
+                {users.filter(u => u.role === 'user').map(u => (
+                  <div key={u.key} className={cardCls}>
+                    <h3 className={`text-sm font-bold mb-3 ${headingCls}`}>{u.display}'s Password</h3>
+                    <div className="space-y-2">
+                      <PasswordInput label="New password" value={userPasswords[u.key] || ''} onChange={v => setUserPasswords(p => ({ ...p, [u.key]: v }))} show={showPasswords[u.key]} onToggle={() => setShowPasswords(p => ({ ...p, [u.key]: !p[u.key] }))} />
+                      <button onClick={() => handleChangeUserPassword(u.key)} className={`w-full py-2 rounded-lg font-semibold text-sm ${primaryBtnCls}`}>
+                        {busyPasswordKey === u.key ? 'Updating...' : 'Update'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {pwMessage && <MessageBanner message={pwMessage} />}
+              </motion.div>
+            )}
+
+            {/* ═══════════ ADD USER SECTION ═══════════ */}
+            {securitySection === 'addUser' && (
+              <motion.div key="add" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} className="space-y-4">
+                <div className={cardCls}>
+                  <h3 className={`text-sm font-bold mb-3 flex items-center gap-2 ${headingCls}`}>
+                    <UserPlus className="w-4 h-4" /> Add New User
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className={`block text-xs font-semibold mb-1 ${labelCls}`}>Login Key</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. john"
+                        value={newUserKey}
+                        onChange={e => setNewUserKey(e.target.value)}
+                        className={inputCls}
+                      />
+                      <p className={`text-[10px] mt-0.5 ${labelCls}`}>Lowercase key used to log in</p>
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-semibold mb-1 ${labelCls}`}>Display Name</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. John Doe"
+                        value={newUserDisplay}
+                        onChange={e => setNewUserDisplay(e.target.value)}
+                        className={inputCls}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-semibold mb-1 ${labelCls}`}>Password</label>
+                      <PasswordInput
+                        label=""
+                        value={newUserPassword}
+                        onChange={setNewUserPassword}
+                        show={showPasswords['new-user']}
+                        onToggle={() => setShowPasswords(p => ({ ...p, 'new-user': !p['new-user'] }))}
+                      />
+                      <p className={`text-[10px] mt-0.5 ${labelCls}`}>Minimum 6 characters</p>
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-semibold mb-1 ${labelCls}`}>Role</label>
+                      <div className="relative">
+                        <select
+                          value={newUserRole}
+                          onChange={e => setNewUserRole(e.target.value as UserRole)}
+                          className={selectCls}
+                        >
+                          <option value="user">User</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                        <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${labelCls}`} />
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleAddUser}
+                      disabled={addUserBusy}
+                      className={`w-full py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50 ${primaryBtnCls}`}
+                    >
+                      {addUserBusy ? 'Adding...' : <><UserPlus className="w-4 h-4" /> Add User</>}
+                    </button>
+                  </div>
+                </div>
+
+                {addUserMessage && <MessageBanner message={addUserMessage} />}
+
+                {/* Existing users list */}
+                <div className={cardCls}>
+                  <h3 className={`text-xs font-bold mb-2 ${headingCls}`}>Current Users</h3>
+                  <div className="space-y-1.5">
+                    {users.map(u => (
+                      <div key={u.key} className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs ${isGlass ? 'bg-white/50' : 'bg-white'}`}>
+                        <div>
+                          <span className={`font-semibold ${headingCls}`}>{u.display}</span>
+                          <span className={`ml-1.5 ${labelCls}`}>({u.key})</span>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                          u.role === 'admin'
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-blue-100 text-blue-700'
+                        }`}>{u.role}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ═══════════ CHANGE USERNAME SECTION ═══════════ */}
+            {securitySection === 'changeUsername' && (
+              <motion.div key="uname" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} className="space-y-4">
+                <div className={cardCls}>
+                  <h3 className={`text-sm font-bold mb-3 flex items-center gap-2 ${headingCls}`}>
+                    <Edit3 className="w-4 h-4" /> Change Display Name
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className={`block text-xs font-semibold mb-1 ${labelCls}`}>Select User</label>
+                      <div className="relative">
+                        <select
+                          value={editUsernameKey}
+                          onChange={e => {
+                            setEditUsernameKey(e.target.value);
+                            const u = users.find(u => u.key === e.target.value);
+                            setEditUsernameValue(u?.display || '');
+                          }}
+                          className={selectCls}
+                        >
+                          <option value="">Choose a user...</option>
+                          {users.map(u => (
+                            <option key={u.key} value={u.key}>{u.display} ({u.key})</option>
+                          ))}
+                        </select>
+                        <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${labelCls}`} />
+                      </div>
+                    </div>
+                    {editUsernameKey && (
+                      <>
+                        <div>
+                          <label className={`block text-xs font-semibold mb-1 ${labelCls}`}>New Display Name</label>
+                          <input
+                            type="text"
+                            value={editUsernameValue}
+                            onChange={e => setEditUsernameValue(e.target.value)}
+                            className={inputCls}
+                          />
+                        </div>
+                        <button
+                          onClick={handleChangeUsername}
+                          disabled={editUsernameBusy}
+                          className={`w-full py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50 ${primaryBtnCls}`}
+                        >
+                          {editUsernameBusy ? 'Updating...' : <><Edit3 className="w-4 h-4" /> Update Username</>}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {editUsernameMessage && <MessageBanner message={editUsernameMessage} />}
+              </motion.div>
+            )}
+
+            {/* ═══════════ CHANGE ROLE SECTION ═══════════ */}
+            {securitySection === 'changeRole' && (
+              <motion.div key="role" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} className="space-y-4">
+                <div className={cardCls}>
+                  <h3 className={`text-sm font-bold mb-3 flex items-center gap-2 ${headingCls}`}>
+                    <ShieldCheck className="w-4 h-4" /> Change User Role
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className={`block text-xs font-semibold mb-1 ${labelCls}`}>Select User</label>
+                      <div className="relative">
+                        <select
+                          value={editRoleKey}
+                          onChange={e => {
+                            setEditRoleKey(e.target.value);
+                            const u = users.find(u => u.key === e.target.value);
+                            setEditRoleValue(u?.role || 'user');
+                          }}
+                          className={selectCls}
+                        >
+                          <option value="">Choose a user...</option>
+                          {users.filter(u => u.key !== 'admin').map(u => (
+                            <option key={u.key} value={u.key}>{u.display} ({u.key}) — {u.role}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${labelCls}`} />
+                      </div>
+                      <p className={`text-[10px] mt-0.5 ${labelCls}`}>The primary admin account cannot be changed</p>
+                    </div>
+                    {editRoleKey && (
+                      <>
+                        <div>
+                          <label className={`block text-xs font-semibold mb-1 ${labelCls}`}>New Role</label>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setEditRoleValue('user')}
+                              className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all border ${
+                                editRoleValue === 'user'
+                                  ? (isGlass ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-blue-50 border-blue-300 text-blue-700')
+                                  : (isGlass ? 'bg-white border-gray-200 text-gray-400' : 'bg-white border-[#e5e5e5] text-[#999]')
+                              }`}
+                            >
+                              User
+                            </button>
+                            <button
+                              onClick={() => setEditRoleValue('admin')}
+                              className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all border ${
+                                editRoleValue === 'admin'
+                                  ? (isGlass ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-amber-50 border-amber-300 text-amber-700')
+                                  : (isGlass ? 'bg-white border-gray-200 text-gray-400' : 'bg-white border-[#e5e5e5] text-[#999]')
+                              }`}
+                            >
+                              Admin
+                            </button>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleChangeRole}
+                          disabled={editRoleBusy}
+                          className={`w-full py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50 ${primaryBtnCls}`}
+                        >
+                          {editRoleBusy ? 'Updating...' : <><ShieldCheck className="w-4 h-4" /> Update Role</>}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {editRoleMessage && <MessageBanner message={editRoleMessage} />}
+
+                {/* Role overview */}
+                <div className={cardCls}>
+                  <h3 className={`text-xs font-bold mb-2 ${headingCls}`}>All Users & Roles</h3>
+                  <div className="space-y-1.5">
+                    {users.map(u => (
+                      <div key={u.key} className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs ${isGlass ? 'bg-white/50' : 'bg-white'}`}>
+                        <div>
+                          <span className={`font-semibold ${headingCls}`}>{u.display}</span>
+                          <span className={`ml-1.5 ${labelCls}`}>({u.key})</span>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                          u.role === 'admin'
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-blue-100 text-blue-700'
+                        }`}>{u.role}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       )}
 
@@ -238,10 +631,10 @@ export default function SettingsPanel({
 
       {activeTab === 'cloud' && (
         <motion.div key="cloud" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
-          <div className={`p-4 rounded-xl ${isGlass ? 'bg-gray-900/5 border border-gray-200/50' : 'bg-[#fafafa] border border-[#e5e5e5]'}`}>
-            <div className="flex items-center gap-2 mb-2"><Cloud className={`w-4 h-4 ${cloudEnabled ? 'text-green-500' : 'text-gray-400'}`} /><span className={`text-sm font-bold ${isGlass ? 'text-gray-900' : 'text-[#0f0f0f]'}`}>Status: {cloudEnabled ? 'Connected' : 'Not configured'}</span></div>
-            {lastSynced && <p className={`text-xs ${isGlass ? 'text-gray-500' : 'text-[#666]'}`}>Last synced: {lastSynced.toLocaleString()}</p>}
-            <p className={`text-xs mt-2 ${isGlass ? 'text-gray-500' : 'text-[#666]'}`}>When cloud is enabled, passwords and data sync across devices.</p>
+          <div className={cardCls}>
+            <div className="flex items-center gap-2 mb-2"><Cloud className={`w-4 h-4 ${cloudEnabled ? 'text-green-500' : 'text-gray-400'}`} /><span className={`text-sm font-bold ${headingCls}`}>Status: {cloudEnabled ? 'Connected' : 'Not configured'}</span></div>
+            {lastSynced && <p className={`text-xs ${labelCls}`}>Last synced: {lastSynced.toLocaleString()}</p>}
+            <p className={`text-xs mt-2 ${labelCls}`}>When cloud is enabled, passwords and data sync across devices.</p>
           </div>
           <button onClick={onForceSync} disabled={!cloudEnabled} className={`w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed ${isGlass ? 'bg-white/60 hover:bg-white border border-gray-200/50 text-gray-700' : 'bg-white border border-[#e5e5e5] text-[#0f0f0f] hover:bg-[#f5f5f5]'}`}><RefreshCw className="w-4 h-4" /> Force Sync Now</button>
           <button onClick={handleReconfigure} className={`w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all ${isGlass ? 'bg-white/60 hover:bg-white border border-gray-200/50 text-gray-700' : 'bg-white border border-[#e5e5e5] text-[#0f0f0f] hover:bg-[#f5f5f5]'}`}><Settings2 className="w-4 h-4" /> {CLOUD_ENABLED ? 'View Supabase Setup Guide' : 'Set up Supabase'}</button>
@@ -301,5 +694,22 @@ function PasswordInput({ label, value, onChange, show, onToggle }: { label: stri
   const { theme } = useTheme();
   const isGlass = theme === 'glass';
   const cls = isGlass ? 'w-full pl-3 pr-10 py-2.5 rounded-xl bg-gray-50 border border-gray-200/80 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10' : 'w-full pl-3 pr-10 py-2 border border-[#e5e5e5] rounded-lg bg-white text-sm focus:outline-none focus:border-[#0f0f0f]';
-  return <div><label className={`block text-xs font-semibold mb-1 ${isGlass ? 'text-gray-500' : 'text-[#666]'}`}>{label}</label><div className="relative"><input type={show ? 'text' : 'password'} value={value} onChange={e => onChange(e.target.value)} className={cls} /><button type="button" onClick={onToggle} className={`absolute right-2.5 top-1/2 -translate-y-1/2 ${isGlass ? 'text-gray-400' : 'text-[#999]'}`}>{show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button></div></div>;
+  return <div>{label && <label className={`block text-xs font-semibold mb-1 ${isGlass ? 'text-gray-500' : 'text-[#666]'}`}>{label}</label>}<div className="relative"><input type={show ? 'text' : 'password'} value={value} onChange={e => onChange(e.target.value)} className={cls} /><button type="button" onClick={onToggle} className={`absolute right-2.5 top-1/2 -translate-y-1/2 ${isGlass ? 'text-gray-400' : 'text-[#999]'}`}>{show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button></div></div>;
+}
+
+function MessageBanner({ message }: { message: { type: 'success' | 'error'; text: string } }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -5 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`text-sm font-medium rounded-lg px-3 py-2.5 flex items-center gap-2 ${
+        message.type === 'success'
+          ? 'bg-green-50 text-green-700 border border-green-200'
+          : 'bg-red-50 text-red-600 border border-red-200'
+      }`}
+    >
+      {message.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+      {message.text}
+    </motion.div>
+  );
 }

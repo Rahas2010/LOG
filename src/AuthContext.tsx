@@ -1,6 +1,13 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import { isSupabaseConfigured } from './db/config';
-import { fetchCloudUsers, saveCloudPassword } from './db/sync';
+import {
+  fetchCloudUsers,
+  saveCloudPassword,
+  saveCloudUser,
+  updateCloudUsername,
+  updateCloudUserRole,
+  deleteCloudUser,
+} from './db/sync';
 
 export type UserRole = 'admin' | 'user';
 
@@ -19,6 +26,10 @@ interface AuthContextValue {
   changePassword: (userKey: string, newPassword: string) => Promise<boolean>;
   getUserDisplay: (userKey: string) => string;
   getAllUsers: () => Array<{ key: string; display: string; role: UserRole }>;
+  addUser: (key: string, display: string, password: string, role: UserRole) => Promise<{ success: boolean; error?: string }>;
+  changeUsername: (userKey: string, newDisplay: string) => Promise<{ success: boolean; error?: string }>;
+  changeUserRole: (userKey: string, newRole: UserRole) => Promise<{ success: boolean; error?: string }>;
+  removeUser: (userKey: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const DEFAULT_USERS: Record<string, { password: string; role: UserRole; display: string }> = {
@@ -59,6 +70,10 @@ const AuthContext = createContext<AuthContextValue>({
   changePassword: async () => false,
   getUserDisplay: () => '',
   getAllUsers: () => [],
+  addUser: async () => ({ success: false }),
+  changeUsername: async () => ({ success: false }),
+  changeUserRole: async () => ({ success: false }),
+  removeUser: async () => ({ success: false }),
 });
 
 function loadUser(): User | null {
@@ -135,6 +150,82 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true;
   }, []);
 
+  const addUser = useCallback(async (key: string, display: string, password: string, role: UserRole): Promise<{ success: boolean; error?: string }> => {
+    const normalizedKey = key.toLowerCase().trim();
+    if (!normalizedKey) return { success: false, error: 'Username key cannot be empty' };
+    if (!display.trim()) return { success: false, error: 'Display name cannot be empty' };
+    if (!password.trim()) return { success: false, error: 'Password cannot be empty' };
+    if (password.length < 6) return { success: false, error: 'Password must be at least 6 characters' };
+
+    const passwords = loadPasswords();
+    if (passwords[normalizedKey]) return { success: false, error: 'A user with this key already exists' };
+
+    if (isSupabaseConfigured()) {
+      const cloudOk = await saveCloudUser(normalizedKey, display.trim(), role, password);
+      if (!cloudOk) return { success: false, error: 'Failed to save user to cloud' };
+    }
+
+    passwords[normalizedKey] = { password, role, display: display.trim() };
+    savePasswords(passwords);
+    return { success: true };
+  }, []);
+
+  const changeUsername = useCallback(async (userKey: string, newDisplay: string): Promise<{ success: boolean; error?: string }> => {
+    if (!newDisplay.trim()) return { success: false, error: 'Display name cannot be empty' };
+
+    const passwords = loadPasswords();
+    if (!passwords[userKey]) return { success: false, error: 'User not found' };
+
+    if (isSupabaseConfigured()) {
+      const cloudOk = await updateCloudUsername(userKey, newDisplay.trim());
+      if (!cloudOk) return { success: false, error: 'Failed to update username in cloud' };
+    }
+
+    passwords[userKey] = { ...passwords[userKey], display: newDisplay.trim() };
+    savePasswords(passwords);
+
+    // If the currently logged-in user changed their own display name, update the session
+    if (user && user.key === userKey) {
+      const updated = { ...user, username: newDisplay.trim() };
+      setUser(updated);
+      saveUser(updated);
+    }
+
+    return { success: true };
+  }, [user]);
+
+  const changeUserRole = useCallback(async (userKey: string, newRole: UserRole): Promise<{ success: boolean; error?: string }> => {
+    if (userKey === 'admin') return { success: false, error: 'Cannot change the admin role' };
+
+    const passwords = loadPasswords();
+    if (!passwords[userKey]) return { success: false, error: 'User not found' };
+
+    if (isSupabaseConfigured()) {
+      const cloudOk = await updateCloudUserRole(userKey, newRole);
+      if (!cloudOk) return { success: false, error: 'Failed to update role in cloud' };
+    }
+
+    passwords[userKey] = { ...passwords[userKey], role: newRole };
+    savePasswords(passwords);
+    return { success: true };
+  }, []);
+
+  const removeUser = useCallback(async (userKey: string): Promise<{ success: boolean; error?: string }> => {
+    if (userKey === 'admin') return { success: false, error: 'Cannot delete the admin user' };
+
+    const passwords = loadPasswords();
+    if (!passwords[userKey]) return { success: false, error: 'User not found' };
+
+    if (isSupabaseConfigured()) {
+      const cloudOk = await deleteCloudUser(userKey);
+      if (!cloudOk) return { success: false, error: 'Failed to delete user from cloud' };
+    }
+
+    delete passwords[userKey];
+    savePasswords(passwords);
+    return { success: true };
+  }, []);
+
   const getUserDisplay = useCallback((userKey: string): string => {
     const passwords = loadPasswords();
     return passwords[userKey]?.display || userKey;
@@ -150,7 +241,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAdmin = user?.role === 'admin';
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAdmin, verifyPassword, changePassword, getUserDisplay, getAllUsers }}>
+    <AuthContext.Provider value={{
+      user, login, logout, isAdmin, verifyPassword, changePassword,
+      getUserDisplay, getAllUsers, addUser, changeUsername, changeUserRole, removeUser,
+    }}>
       {children}
     </AuthContext.Provider>
   );

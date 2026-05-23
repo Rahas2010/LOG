@@ -120,6 +120,107 @@ export async function saveCloudPassword(userKey: string, newPassword: string): P
   }
 }
 
+/** Add or upsert a user in the cloud app_users table. */
+export async function saveCloudUser(
+  userKey: string,
+  display: string,
+  role: UserRole,
+  password: string
+): Promise<boolean> {
+  const client = getSupabaseClient();
+  if (!client) return false;
+
+  try {
+    const { error } = await client
+      .from('app_users')
+      .upsert(
+        {
+          user_key: userKey,
+          display,
+          role,
+          password,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_key' }
+      );
+
+    if (error) {
+      console.error('Save cloud user error:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Save cloud user exception:', err);
+    return false;
+  }
+}
+
+/** Update a user's username (display name) in the cloud. */
+export async function updateCloudUsername(userKey: string, newDisplay: string): Promise<boolean> {
+  const client = getSupabaseClient();
+  if (!client) return false;
+
+  try {
+    const { error } = await client
+      .from('app_users')
+      .update({ display: newDisplay, updated_at: new Date().toISOString() })
+      .eq('user_key', userKey);
+
+    if (error) {
+      console.error('Update cloud username error:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Update cloud username exception:', err);
+    return false;
+  }
+}
+
+/** Update a user's role in the cloud. */
+export async function updateCloudUserRole(userKey: string, newRole: UserRole): Promise<boolean> {
+  const client = getSupabaseClient();
+  if (!client) return false;
+
+  try {
+    const { error } = await client
+      .from('app_users')
+      .update({ role: newRole, updated_at: new Date().toISOString() })
+      .eq('user_key', userKey);
+
+    if (error) {
+      console.error('Update cloud role error:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Update cloud role exception:', err);
+    return false;
+  }
+}
+
+/** Delete a user from the cloud app_users table. */
+export async function deleteCloudUser(userKey: string): Promise<boolean> {
+  const client = getSupabaseClient();
+  if (!client) return false;
+
+  try {
+    const { error } = await client
+      .from('app_users')
+      .delete()
+      .eq('user_key', userKey);
+
+    if (error) {
+      console.error('Delete cloud user error:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Delete cloud user exception:', err);
+    return false;
+  }
+}
+
 /** Check cloud connection by ensuring both required tables exist. */
 export async function testConnection(): Promise<{ ok: boolean; error?: string }> {
   const client = getSupabaseClient();
