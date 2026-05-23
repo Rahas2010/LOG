@@ -23,7 +23,7 @@ interface AuthContextValue {
 
 const DEFAULT_USERS: Record<string, { password: string; role: UserRole; display: string }> = {
   admin: { password: 'Rahas@2010', role: 'admin', display: 'Rahas' },
-  rahas: { password: 'Rahas@2010', role: 'user', display: 'Rahas Sharma' },
+  rahas: { password: '452010', role: 'user', display: 'Rahas Sharma' },
 };
 
 const PASSWORDS_KEY = 'screentime_passwords';
