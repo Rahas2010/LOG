@@ -9,7 +9,7 @@ import type { AppSettings } from '../types';
 import { DEFAULT_SETTINGS } from '../types';
 import { useTheme } from '../ThemeContext';
 import { useAuth } from '../AuthContext';
-import { clearSupabaseConfig, isSupabaseConfigured } from '../db/config';
+import { CLOUD_ENABLED } from '../db/supabase';
 
 interface SettingsPanelProps {
   isOpen: boolean;
@@ -161,11 +161,8 @@ export default function SettingsPanel({
   };
 
   const handleReconfigure = () => {
-    if (confirm('This will clear your Supabase config. You will need to set it up again. Continue?')) {
-      clearSupabaseConfig();
-      localStorage.removeItem('screentime_setup_skipped');
-      onReconfigureCloud();
-    }
+    localStorage.removeItem('screentime_setup_skipped');
+    onReconfigureCloud();
   };
 
   const handleShowDebug = () => {
@@ -247,7 +244,7 @@ export default function SettingsPanel({
             <p className={`text-xs mt-2 ${isGlass ? 'text-gray-500' : 'text-[#666]'}`}>When cloud is enabled, passwords and data sync across devices.</p>
           </div>
           <button onClick={onForceSync} disabled={!cloudEnabled} className={`w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed ${isGlass ? 'bg-white/60 hover:bg-white border border-gray-200/50 text-gray-700' : 'bg-white border border-[#e5e5e5] text-[#0f0f0f] hover:bg-[#f5f5f5]'}`}><RefreshCw className="w-4 h-4" /> Force Sync Now</button>
-          <button onClick={handleReconfigure} className={`w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all ${isGlass ? 'bg-white/60 hover:bg-white border border-gray-200/50 text-gray-700' : 'bg-white border border-[#e5e5e5] text-[#0f0f0f] hover:bg-[#f5f5f5]'}`}><Settings2 className="w-4 h-4" /> {isSupabaseConfigured() ? 'Reconfigure Supabase' : 'Set up Supabase'}</button>
+          <button onClick={handleReconfigure} className={`w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all ${isGlass ? 'bg-white/60 hover:bg-white border border-gray-200/50 text-gray-700' : 'bg-white border border-[#e5e5e5] text-[#0f0f0f] hover:bg-[#f5f5f5]'}`}><Settings2 className="w-4 h-4" /> {CLOUD_ENABLED ? 'View Supabase Setup Guide' : 'Set up Supabase'}</button>
         </motion.div>
       )}
 

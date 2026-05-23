@@ -1,33 +1,28 @@
+/**
+ * Cloud config — all derived from the hardcoded supabase.ts file.
+ * No longer reads from localStorage; credentials are baked into the build.
+ */
+import { CLOUD_ENABLED, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase';
+
 export interface SupabaseConfig {
   url: string;
   anonKey: string;
 }
 
-const CONFIG_KEY = 'screentime_supabase_config';
-
 export function loadSupabaseConfig(): SupabaseConfig | null {
-  try {
-    const saved = localStorage.getItem(CONFIG_KEY);
-    if (saved) {
-      return JSON.parse(saved);
-    }
-  } catch {}
-  return null;
+  if (!CLOUD_ENABLED) return null;
+  return { url: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY };
 }
 
-export function saveSupabaseConfig(config: SupabaseConfig): void {
-  try {
-    localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
-  } catch {}
+export function saveSupabaseConfig(_config: SupabaseConfig): void {
+  // no-op — config is hardcoded in supabase.ts
 }
 
 export function clearSupabaseConfig(): void {
-  try {
-    localStorage.removeItem(CONFIG_KEY);
-  } catch {}
+  // no-op — can't clear hardcoded config at runtime
+  // to disable cloud, set SUPABASE_URL = '' in supabase.ts and rebuild
 }
 
 export function isSupabaseConfigured(): boolean {
-  const config = loadSupabaseConfig();
-  return !!(config && config.url && config.anonKey);
+  return CLOUD_ENABLED;
 }

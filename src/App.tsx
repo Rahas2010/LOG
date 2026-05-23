@@ -15,7 +15,7 @@ import SettingsPanel from './components/SettingsPanel';
 import { ThemeProvider, useTheme } from './ThemeContext';
 import { AuthProvider, useAuth } from './AuthContext';
 import { useStore, getDateKey } from './useStore';
-import { isSupabaseConfigured } from './db/config';
+import { CLOUD_ENABLED } from './db/supabase';
 
 function Dashboard() {
   const { theme } = useTheme();
@@ -312,31 +312,34 @@ function Dashboard() {
 
 function AppInner() {
   const { user } = useAuth();
-  const [setupVersion, setSetupVersion] = useState(0); // bumped when setup completes → forces remount
+  const [showSetup, setShowSetup] = useState(false);
+
+  // Show setup screen when explicitly requested from Settings,
+  // or if cloud is not yet configured AND user hasn't dismissed it
+  const setupDismissed = localStorage.getItem('screentime_setup_skipped') === 'true';
 
   if (!user) {
     return <LoginPage />;
   }
 
-  const configured = isSupabaseConfigured();
-  const skipped = localStorage.getItem('screentime_setup_skipped') === 'true';
-
-  // First-time user with no cloud config → show setup
-  if (!configured && !skipped) {
+  // If cloud not hardcoded and not yet dismissed → guide user through one-time setup
+  if (!CLOUD_ENABLED && !setupDismissed || showSetup) {
     return (
       <DbSetupScreen
         onComplete={() => {
-          setSetupVersion(v => v + 1);
+          localStorage.removeItem('screentime_setup_skipped');
+          setShowSetup(false);
+          window.location.reload();
         }}
         onSkip={() => {
           localStorage.setItem('screentime_setup_skipped', 'true');
-          setSetupVersion(v => v + 1);
+          setShowSetup(false);
         }}
       />
     );
   }
 
-  return <Dashboard key={`dash-${setupVersion}`} />;
+  return <Dashboard />;
 }
 
 export default function App() {

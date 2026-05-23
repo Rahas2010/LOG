@@ -1,21 +1,17 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { loadSupabaseConfig } from './config';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, CLOUD_ENABLED } from './supabase';
 
-let clientInstance: SupabaseClient | null = null;
+let _client: SupabaseClient | null = null;
 
 export function getSupabaseClient(): SupabaseClient | null {
-  const config = loadSupabaseConfig();
-  if (!config || !config.url || !config.anonKey) {
-    return null;
+  if (!CLOUD_ENABLED) return null;
+  if (!_client) {
+    _client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
-
-  if (!clientInstance) {
-    clientInstance = createClient(config.url, config.anonKey);
-  }
-
-  return clientInstance;
+  return _client;
 }
 
+// kept for compatibility — no-op when using hardcoded credentials
 export function resetSupabaseClient(): void {
-  clientInstance = null;
+  _client = null;
 }

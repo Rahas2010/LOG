@@ -4,13 +4,13 @@ import { Monitor, Eye, EyeOff, LogIn, AlertCircle, User, Lock, Cloud } from 'luc
 import { useAuth } from '../AuthContext';
 import { useTheme } from '../ThemeContext';
 import ThemeToggle from './ThemeToggle';
-import { isSupabaseConfigured } from '../db/config';
+import { CLOUD_ENABLED } from '../db/supabase';
 
 export default function LoginPage() {
   const { login } = useAuth();
   const { theme } = useTheme();
   const isGlass = theme === 'glass';
-  const cloudConfigured = isSupabaseConfigured();
+  const cloudConfigured = CLOUD_ENABLED;
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
