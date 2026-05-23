@@ -11,11 +11,6 @@
  * ╚══════════════════════════════════════════════════════════════╝
  */
 
-export const SUPABASE_URL = '';   // e.g. 'https://abcxyz.supabase.co'
-export const SUPABASE_ANON_KEY = ''; // e.g. 'eyJhbGci...'
-
-/**
- * True only when both credentials are provided.
- * When false, the app works fully offline (localStorage only).
- */
+export const SUPABASE_URL = 'https://wixblcishuheruxzzcbh.supabase.co';
+export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpeGJsY2lzaHVoZXJ1eHp6Y2JoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1MzQyOTQsImV4cCI6MjA5NTExMDI5NH0.nC3E_lqWeBPnutMMpa7iA_8jdvN9wkA73xdYzna8lTc';
 export const CLOUD_ENABLED = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
