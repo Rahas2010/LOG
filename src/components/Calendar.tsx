@@ -99,6 +99,7 @@ export default function Calendar({
           {days.map(({ key, date, isCurrentMonth }) => {
             const isSelected = key === selectedDate;
             const isToday = key === todayKey;
+            const isFuture = key > todayKey;
             const blockInfo = getBlockInfo(key);
 
             let cls = 'aspect-square flex items-center justify-center rounded-lg text-sm font-medium transition-all duration-150 cursor-pointer border ';
@@ -115,6 +116,8 @@ export default function Calendar({
               cls += 'bg-[#fee2e2] border-[#ef4444] text-[#991b1b] font-semibold';
             } else if (blockInfo === 'partial') {
               cls += 'bg-orange-50 border-orange-300 text-orange-700';
+            } else if (isFuture) {
+              cls += 'border-[#e5e5e5] text-[#999] bg-[#fafafa]';
             } else {
               cls += 'border-[#e5e5e5] hover:border-[#0f0f0f] hover:bg-[#f5f5f5]';
             }

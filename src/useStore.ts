@@ -14,6 +14,10 @@ function getDateKey(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+function isFutureDateKey(dateKey: string): boolean {
+  return dateKey > getDateKey(new Date());
+}
+
 function defaultState(): AppState {
   const now = new Date();
   return {
@@ -205,6 +209,7 @@ export function useStore(userKey: string | null) {
   }, []);
 
   const updateSpells = useCallback((dateKey: string, data: DailyData) => {
+    if (isFutureDateKey(dateKey)) return;
     updateState(s => {
       const newDailyData = { ...s.dailyData, [dateKey]: data };
       const newBlocked = recalculateBlocks(newDailyData, s.settings);
@@ -213,6 +218,7 @@ export function useStore(userKey: string | null) {
   }, [updateState, recalculateBlocks]);
 
   const resetSpells = useCallback((dateKey: string) => {
+    if (isFutureDateKey(dateKey)) return;
     updateState(s => {
       const newDailyData = { ...s.dailyData };
       delete newDailyData[dateKey];

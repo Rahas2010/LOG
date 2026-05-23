@@ -47,6 +47,7 @@ function Dashboard() {
 
   const todayKey = getDateKey(new Date());
   const todayPenalty = getPenaltyInfo(todayKey);
+  const isFutureSelected = state.selectedDate > todayKey;
 
   const userInitial = user?.username?.charAt(0).toUpperCase() || '?';
 
@@ -107,6 +108,7 @@ function Dashboard() {
                 isFullyBlocked={blockStatus.fullBlock}
                 blockedMinutes={blockStatus.minutes}
                 effectiveLimit={penaltyInfo.effectiveLimit}
+                isFutureDate={isFutureSelected}
                 onUpdate={updateSpells}
                 onReset={resetSpells}
                 onOverride={() => setShowOverride(true)}
@@ -239,6 +241,7 @@ function Dashboard() {
               isFullyBlocked={blockStatus.fullBlock}
               blockedMinutes={blockStatus.minutes}
               effectiveLimit={penaltyInfo.effectiveLimit}
+              isFutureDate={isFutureSelected}
               onUpdate={updateSpells}
               onReset={resetSpells}
               onOverride={() => setShowOverride(true)}

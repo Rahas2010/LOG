@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, RotateCcw, ShieldAlert, Save, Lock, Timer } from 'lucide-react';
+import { Clock, RotateCcw, ShieldAlert, Save, Lock, Timer, CalendarClock } from 'lucide-react';
 import type { DailyData } from '../types';
 import { useTheme } from '../ThemeContext';
 import SaveConfirmationModal from './SaveConfirmationModal';
@@ -12,13 +12,14 @@ interface SpellInputProps {
   blockedMinutes: number;
   effectiveLimit: number;
   isAdmin: boolean;
+  isFutureDate: boolean;
   onUpdate: (dateKey: string, data: DailyData) => void;
   onReset: (dateKey: string) => void;
   onOverride: () => void;
 }
 
 export default function SpellInput({
-  dateKey, dailyData, isFullyBlocked, blockedMinutes, effectiveLimit, isAdmin, onUpdate, onReset, onOverride
+  dateKey, dailyData, isFullyBlocked, blockedMinutes, effectiveLimit, isAdmin, isFutureDate, onUpdate, onReset, onOverride
 }: SpellInputProps) {
   const { theme } = useTheme();
   const isGlass = theme === 'glass';
@@ -27,6 +28,7 @@ export default function SpellInput({
   const [spell2, setSpell2] = useState(dailyData.spell2 || 0);
   const [spell3, setSpell3] = useState(dailyData.spell3 || 0);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   useEffect(() => {
     setSpell1(dailyData.spell1 || 0);
@@ -34,16 +36,28 @@ export default function SpellInput({
     setSpell3(dailyData.spell3 || 0);
   }, [dailyData, dateKey]);
 
-  const requestSave = () => setShowSaveConfirm(true);
+  const requestSave = () => {
+    if (isFutureDate || isFullyBlocked) return;
+    setShowSaveConfirm(true);
+  };
+
   const confirmSave = () => {
     onUpdate(dateKey, { spell1, spell2, spell3 });
     setShowSaveConfirm(false);
   };
-  const handleReset = () => { setSpell1(0); setSpell2(0); setSpell3(0); onReset(dateKey); };
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
-  const requestReset = () => setShowResetConfirm(true);
-  const confirmReset = () => { handleReset(); setShowResetConfirm(false); };
+  const requestReset = () => {
+    if (isFutureDate) return;
+    setShowResetConfirm(true);
+  };
+
+  const confirmReset = () => {
+    setSpell1(0);
+    setSpell2(0);
+    setSpell3(0);
+    onReset(dateKey);
+    setShowResetConfirm(false);
+  };
 
   const formatDate = (key: string) => {
     const d = new Date(key + 'T00:00:00');
@@ -52,8 +66,33 @@ export default function SpellInput({
 
   const total = spell1 + spell2 + spell3;
   const isOverLimit = total > effectiveLimit;
+  const disableEditing = isFutureDate || isFullyBlocked;
 
-  const modal = (
+  const futureBannerClassic = isFutureDate && (
+    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-5 flex items-center gap-3">
+      <CalendarClock className="w-4 h-4 text-blue-700 flex-shrink-0" />
+      <div>
+        <p className="text-sm font-semibold text-blue-700">Future date is view-only</p>
+        <p className="text-xs text-blue-600">You can’t add or reset time for tomorrow or later dates.</p>
+      </div>
+    </div>
+  );
+
+  const futureBannerGlass = isFutureDate && (
+    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mx-6 md:mx-8 mt-4">
+      <div className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl p-4 flex items-center gap-3">
+        <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+          <CalendarClock className="w-4 h-4 text-white" />
+        </div>
+        <div>
+          <p className="text-white text-sm font-semibold">Future date is view-only</p>
+          <p className="text-white/70 text-xs">Limits for the next day can’t be added manually.</p>
+        </div>
+      </div>
+    </motion.div>
+  );
+
+  const modals = (
     <>
       <SaveConfirmationModal
         isOpen={showSaveConfirm}
@@ -63,7 +102,7 @@ export default function SpellInput({
       />
       <SaveConfirmationModal
         isOpen={showResetConfirm}
-        actionLabel="reset this day"
+        actionLabel="reset this time entry"
         onClose={() => setShowResetConfirm(false)}
         onConfirm={confirmReset}
       />
@@ -77,6 +116,8 @@ export default function SpellInput({
         <div className="bg-white border border-[#e5e5e5] rounded-xl p-7 transition-all duration-300 hover:border-[#d0d0d0] hover:shadow-sm">
           <div className="text-lg font-semibold text-[#0f0f0f] mb-1">Log Time</div>
           <div className="text-sm text-[#666] mb-5">{formatDate(dateKey)}</div>
+
+          {futureBannerClassic}
 
           {isFullyBlocked && (
             <div className="bg-[#fee2e2] border border-[#ef4444] rounded-lg p-4 mb-5 flex items-center gap-3">
@@ -108,11 +149,18 @@ export default function SpellInput({
                 ].map(s => (
                   <div key={s.label}>
                     <label className="block text-sm font-semibold text-[#0f0f0f] mb-2">{s.label}</label>
-                    <input type="number" value={s.value || ''} min={0} placeholder="0"
+                    <input
+                      type="number"
+                      value={s.value || ''}
+                      min={0}
+                      placeholder="0"
+                      readOnly={isFutureDate}
+                      disabled={isFutureDate}
                       onChange={e => s.setter(Math.max(0, parseInt(e.target.value) || 0))}
-                      className="w-full px-3 py-2.5 border border-[#e5e5e5] rounded-lg text-base bg-[#fafafa] font-medium
-                               focus:outline-none focus:border-[#0f0f0f] focus:bg-white focus:shadow-[0_0_0_3px_rgba(15,15,15,0.05)]
-                               transition-all" />
+                      className={`w-full px-3 py-2.5 border border-[#e5e5e5] rounded-lg text-base bg-[#fafafa] font-medium transition-all ${
+                        isFutureDate ? 'opacity-60 cursor-not-allowed' : 'focus:outline-none focus:border-[#0f0f0f] focus:bg-white focus:shadow-[0_0_0_3px_rgba(15,15,15,0.05)]'
+                      }`}
+                    />
                   </div>
                 ))}
               </div>
@@ -122,12 +170,18 @@ export default function SpellInput({
               </div>
 
               <div className="grid grid-cols-2 gap-3 mb-3">
-                <button onClick={requestSave}
-                  className="py-2.5 rounded-lg bg-[#0f0f0f] text-white font-semibold text-sm hover:bg-[#333] transition-colors">
+                <button
+                  onClick={requestSave}
+                  disabled={disableEditing}
+                  className="py-2.5 rounded-lg bg-[#0f0f0f] text-white font-semibold text-sm hover:bg-[#333] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
                   Update
                 </button>
-                <button onClick={handleReset}
-                  className="py-2.5 rounded-lg border border-[#e5e5e5] bg-white text-[#0f0f0f] font-semibold text-sm hover:bg-[#f5f5f5] transition-colors">
+                <button
+                  onClick={requestReset}
+                  disabled={isFutureDate}
+                  className="py-2.5 rounded-lg border border-[#e5e5e5] bg-white text-[#0f0f0f] font-semibold text-sm hover:bg-[#f5f5f5] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
                   Reset
                 </button>
               </div>
@@ -141,7 +195,7 @@ export default function SpellInput({
             </button>
           )}
         </div>
-        {modal}
+        {modals}
       </>
     );
   }
@@ -163,6 +217,8 @@ export default function SpellInput({
             </div>
           </div>
         </div>
+
+        {futureBannerGlass}
 
         {isFullyBlocked && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mx-6 md:mx-8 mt-4">
@@ -204,11 +260,18 @@ export default function SpellInput({
                   <div key={spell.label} className="space-y-2">
                     <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{spell.label}</label>
                     <div className="relative">
-                      <input type="number" value={spell.value || ''} min={0} placeholder="0"
+                      <input
+                        type="number"
+                        value={spell.value || ''}
+                        min={0}
+                        placeholder="0"
+                        readOnly={isFutureDate}
+                        disabled={isFutureDate}
                         onChange={(e) => spell.setter(Math.max(0, parseInt(e.target.value) || 0))}
-                        className="w-full px-4 py-3.5 rounded-2xl bg-gray-50 border border-gray-200/80 text-gray-900 font-semibold text-lg
-                                 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300 focus:bg-white
-                                 transition-all duration-200 placeholder:text-gray-300" />
+                        className={`w-full px-4 py-3.5 rounded-2xl bg-gray-50 border border-gray-200/80 text-gray-900 font-semibold text-lg transition-all duration-200 placeholder:text-gray-300 ${
+                          isFutureDate ? 'opacity-60 cursor-not-allowed' : 'focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300 focus:bg-white'
+                        }`}
+                      />
                       <div className={`absolute top-0 left-0 w-full h-0.5 rounded-t-2xl bg-gradient-to-r ${spell.gradient} opacity-60`} />
                     </div>
                     <p className="text-xs text-gray-400 text-center font-medium">{spell.value || 0} min</p>
@@ -223,16 +286,18 @@ export default function SpellInput({
                 </div>
               </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-1">
-              <motion.button whileTap={{ scale: 0.97 }} onClick={requestSave}
-                className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gray-900 text-white font-semibold text-sm hover:bg-gray-800 transition-all duration-200 shadow-lg shadow-gray-900/15">
-                <Save className="w-4 h-4" /> Save
-              </motion.button>
-              <motion.button whileTap={{ scale: 0.97 }} onClick={requestReset}
-                className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gray-100 text-gray-700 font-semibold text-sm hover:bg-gray-200 transition-all duration-200 border border-gray-200/50">
-                <RotateCcw className="w-4 h-4" /> Reset
-              </motion.button>
-            </div>
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <motion.button whileTap={{ scale: disableEditing ? 1 : 0.97 }} onClick={requestSave}
+                  disabled={disableEditing}
+                  className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gray-900 text-white font-semibold text-sm hover:bg-gray-800 transition-all duration-200 shadow-lg shadow-gray-900/15 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-900">
+                  <Save className="w-4 h-4" /> Save
+                </motion.button>
+                <motion.button whileTap={{ scale: isFutureDate ? 1 : 0.97 }} onClick={requestReset}
+                  disabled={isFutureDate}
+                  className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gray-100 text-gray-700 font-semibold text-sm hover:bg-gray-200 transition-all duration-200 border border-gray-200/50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-100">
+                  <RotateCcw className="w-4 h-4" /> Reset
+                </motion.button>
+              </div>
             </>
           )}
 
@@ -244,7 +309,7 @@ export default function SpellInput({
           )}
         </div>
       </div>
-      {modal}
+      {modals}
     </>
   );
 }

@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { isSupabaseConfigured } from './db/config';
+import { fetchCloudUsers, saveCloudPassword } from './db/sync';
 
 export type UserRole = 'admin' | 'user';
 
@@ -10,11 +12,11 @@ export interface User {
 
 interface AuthContextValue {
   user: User | null;
-  login: (username: string, password: string, confirm: string) => { success: boolean; error?: string };
+  login: (username: string, password: string, confirm: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   isAdmin: boolean;
   verifyPassword: (password: string) => boolean;
-  changePassword: (userKey: string, newPassword: string) => boolean;
+  changePassword: (userKey: string, newPassword: string) => Promise<boolean>;
   getUserDisplay: (userKey: string) => string;
   getAllUsers: () => Array<{ key: string; display: string; role: UserRole }>;
 }
@@ -31,7 +33,6 @@ function loadPasswords(): Record<string, { password: string; role: UserRole; dis
     const saved = localStorage.getItem(PASSWORDS_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      // Merge with defaults so new users are included
       return { ...DEFAULT_USERS, ...parsed };
     }
   } catch {}
@@ -44,7 +45,6 @@ function savePasswords(passwords: Record<string, { password: string; role: UserR
   } catch {}
 }
 
-// Module-level getter for use by useStore (outside React tree)
 export function verifyAdminPassword(password: string): boolean {
   const passwords = loadPasswords();
   return passwords.admin?.password === password;
@@ -52,11 +52,11 @@ export function verifyAdminPassword(password: string): boolean {
 
 const AuthContext = createContext<AuthContextValue>({
   user: null,
-  login: () => ({ success: false }),
+  login: async () => ({ success: false }),
   logout: () => {},
   isAdmin: false,
   verifyPassword: () => false,
-  changePassword: () => false,
+  changePassword: async () => false,
   getUserDisplay: () => '',
   getAllUsers: () => [],
 });
@@ -79,18 +79,30 @@ function saveUser(user: User | null) {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(loadUser);
 
-  const login = useCallback((username: string, password: string, confirm: string): { success: boolean; error?: string } => {
+  const login = useCallback(async (username: string, password: string, confirm: string): Promise<{ success: boolean; error?: string }> => {
     if (!password.trim() || !confirm.trim()) {
       return { success: false, error: 'Please fill in all fields' };
     }
     if (password !== confirm) {
       return { success: false, error: 'Passwords do not match' };
     }
+
     const key = username.toLowerCase().trim();
-    const passwords = loadPasswords();
+    let passwords = loadPasswords();
+
+    // If cloud is configured, prefer cloud user list so login/passwords sync across devices
+    if (isSupabaseConfigured()) {
+      const cloudUsers = await fetchCloudUsers();
+      if (cloudUsers && Object.keys(cloudUsers).length > 0) {
+        passwords = { ...passwords, ...cloudUsers };
+        savePasswords(passwords);
+      }
+    }
+
     const entry = passwords[key];
     if (!entry) return { success: false, error: 'User not found' };
     if (entry.password !== password) return { success: false, error: 'Incorrect password' };
+
     const u: User = { username: entry.display, role: entry.role, key };
     setUser(u);
     saveUser(u);
@@ -109,9 +121,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return !!entry && entry.password === password;
   }, [user]);
 
-  const changePassword = useCallback((userKey: string, newPassword: string): boolean => {
+  const changePassword = useCallback(async (userKey: string, newPassword: string): Promise<boolean> => {
     const passwords = loadPasswords();
     if (!passwords[userKey]) return false;
+
+    if (isSupabaseConfigured()) {
+      const cloudOk = await saveCloudPassword(userKey, newPassword);
+      if (!cloudOk) return false;
+    }
+
     passwords[userKey] = { ...passwords[userKey], password: newPassword };
     savePasswords(passwords);
     return true;
