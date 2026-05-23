@@ -10,12 +10,14 @@ interface SyncStatusIndicatorProps {
 }
 
 export default function SyncStatusIndicator({ status, lastSynced, cloudEnabled }: SyncStatusIndicatorProps) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const isGlass = theme === 'glass';
 
   if (!cloudEnabled) {
     return (
-      <div className={`flex items-center gap-1.5 text-[10px] font-medium ${isGlass ? 'text-gray-400' : 'text-[#999]'}`}
+      <div className={`flex items-center gap-1.5 text-[10px] font-medium ${
+        isDark ? 'text-gray-600' : isGlass ? 'text-gray-400' : 'text-[#999]'
+      }`}
         title="Cloud not configured — using local storage">
         <CloudOff className="w-3 h-3" />
         <span className="hidden sm:inline">Local only</span>
@@ -24,7 +26,7 @@ export default function SyncStatusIndicator({ status, lastSynced, cloudEnabled }
   }
 
   const statusMap: Record<SyncStatus, { icon: React.ComponentType<{ className?: string }>; label: string; color: string; spin?: boolean }> = {
-    idle: { icon: Cloud, label: 'Ready', color: isGlass ? 'text-gray-400' : 'text-[#999]' },
+    idle: { icon: Cloud, label: 'Ready', color: isDark ? 'text-gray-500' : isGlass ? 'text-gray-400' : 'text-[#999]' },
     loading: { icon: Loader2, label: 'Loading', color: 'text-blue-500', spin: true },
     syncing: { icon: Loader2, label: 'Saving', color: 'text-blue-500', spin: true },
     synced: { icon: CheckCircle2, label: 'Synced', color: 'text-green-500' },
@@ -45,7 +47,11 @@ export default function SyncStatusIndicator({ status, lastSynced, cloudEnabled }
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className={`flex items-center gap-1.5 text-[10px] font-medium ${s.color} ${
-        isGlass ? 'bg-white/50 rounded-full px-2.5 py-1' : ''
+        isDark
+          ? 'bg-[#1a1a2e] rounded-full px-2.5 py-1'
+          : isGlass
+            ? 'bg-white/50 rounded-full px-2.5 py-1'
+            : ''
       }`}
       title={lastSyncedLabel}
     >

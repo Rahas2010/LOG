@@ -45,26 +45,26 @@ function ClassicStatCard({ label, value, unit, variant }: {
 }
 
 /* ═══════════════════════════════════════
-   GLASS STAT CARD
+   GLASS / DARK STAT CARD
    ═══════════════════════════════════════ */
-function GlassStatCard({ label, value, unit, icon: Icon, gradient, delay, accent }: {
+function GlassStatCard({ label, value, unit, icon: Icon, gradient, delay, accent, isDark }: {
   label: string; value: number | string; unit: string;
   icon: React.ComponentType<{ className?: string }>;
-  gradient: string; delay: number; accent?: string;
+  gradient: string; delay: number; accent?: string; isDark?: boolean;
 }) {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="glass-card p-5 group">
+      className={isDark ? 'dark-card p-5 group' : 'glass-card p-5 group'}>
       <div className="flex items-start justify-between mb-3">
         <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-md`}>
           <Icon className="w-4 h-4 text-white" />
         </div>
       </div>
-      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{label}</p>
+      <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{label}</p>
       <div className="flex items-baseline gap-1">
-        <span className={`text-2xl font-extrabold tracking-tight ${accent || 'text-gray-900'}`}>{value}</span>
-        <span className="text-xs text-gray-400 font-medium">{unit}</span>
+        <span className={`text-2xl font-extrabold tracking-tight ${accent || (isDark ? 'text-white' : 'text-gray-900')}`}>{value}</span>
+        <span className={`text-xs font-medium ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{unit}</span>
       </div>
     </motion.div>
   );
@@ -74,7 +74,7 @@ function GlassStatCard({ label, value, unit, icon: Icon, gradient, delay, accent
    MAIN COMPONENT
    ═══════════════════════════════════════ */
 export default function StatsPanel({ penaltyInfo, dailyData, isBlocked, isFullBlock, blockedMinutes }: StatsPanelProps) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const isGlass = theme === 'glass';
   const { totalTime, effectiveLimit, bonusTime, excessTime, penaltyMinutes, carryForward } = penaltyInfo;
 
@@ -105,7 +105,7 @@ export default function StatsPanel({ penaltyInfo, dailyData, isBlocked, isFullBl
       { l: 'Multiplier', r: '× 1.5', bold: false },
     ];
 
-    if (!isGlass) {
+    if (!isGlass && !isDark) {
       return (
         <div className="bg-white border border-[#e5e5e5] rounded-xl p-5">
           <div className="text-xs font-semibold uppercase tracking-wider text-[#666] mb-3">Penalty Breakdown</div>
@@ -147,28 +147,28 @@ export default function StatsPanel({ penaltyInfo, dailyData, isBlocked, isFullBl
 
     return (
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-        className="glass-card p-5">
-        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Penalty Breakdown</p>
+        className={isDark ? 'dark-card p-5' : 'glass-card p-5'}>
+        <p className={`text-xs font-bold uppercase tracking-widest mb-3 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Penalty Breakdown</p>
         <div className="space-y-2.5">
           {rows.map((r, i) => (
             <div key={i} className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">{r.l}</span>
-              <span className={`text-sm font-semibold ${r.accent ? 'text-orange-500' : 'text-gray-900'}`}>{r.r}</span>
+              <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{r.l}</span>
+              <span className={`text-sm font-semibold ${r.accent ? 'text-orange-500' : (isDark ? 'text-white' : 'text-gray-900')}`}>{r.r}</span>
             </div>
           ))}
-          <div className="border-t border-gray-100 pt-2.5 flex items-center justify-between">
-            <span className="text-sm font-bold text-gray-900">Total penalty</span>
+          <div className={`border-t pt-2.5 flex items-center justify-between ${isDark ? 'border-[#2a2a3e]' : 'border-gray-100'}`}>
+            <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Total penalty</span>
             <span className="text-sm font-bold text-red-500">{penaltyMinutes} min</span>
           </div>
           {isFullBlock && (
             <>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Next day</span>
+                <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Next day</span>
                 <span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">FULLY BLOCKED</span>
               </div>
               {carryForward > 0 && (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Carried forward</span>
+                  <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Carried forward</span>
                   <span className="text-sm font-bold text-purple-500">{carryForward} min →</span>
                 </div>
               )}
@@ -176,7 +176,7 @@ export default function StatsPanel({ penaltyInfo, dailyData, isBlocked, isFullBl
           )}
           {penaltyMinutes > 0 && penaltyMinutes < 60 && (
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Next day limit</span>
+              <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Next day limit</span>
               <span className="text-xs font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full">
                 60 − {penaltyMinutes} = {60 - penaltyMinutes} MIN
               </span>
@@ -190,10 +190,9 @@ export default function StatsPanel({ penaltyInfo, dailyData, isBlocked, isFullBl
   /* ═══════════════════════════════════
      CLASSIC THEME
      ═══════════════════════════════════ */
-  if (!isGlass) {
+  if (!isGlass && !isDark) {
     return (
       <div className="space-y-5">
-        {/* Block banner */}
         {(isBlocked || isFullBlock) && (
           <div className={`border rounded-xl p-4 flex items-center gap-3 ${
             isFullBlock ? 'bg-[#fee2e2] border-[#ef4444]' : 'bg-orange-50 border-orange-300'
@@ -210,7 +209,6 @@ export default function StatsPanel({ penaltyInfo, dailyData, isBlocked, isFullBl
           </div>
         )}
 
-        {/* Info box */}
         <div className="bg-[#f0f9ff] border border-[#bfdbfe] rounded-lg p-4 text-sm text-[#1e40af]">
           Total: <strong>{totalTime}</strong> / {effectiveLimit} min
           {blockedMinutes > 0 && !isFullBlock && (
@@ -218,7 +216,6 @@ export default function StatsPanel({ penaltyInfo, dailyData, isBlocked, isFullBl
           )}
         </div>
 
-        {/* Stat cards */}
         <div className="grid grid-cols-2 gap-4">
           <ClassicStatCard label="Total Time" value={totalTime} unit="minutes" variant={isOver ? 'danger' : 'accent'} />
           <ClassicStatCard label="Bonus Time" value={bonusTime} unit="minutes available" variant="success" />
@@ -232,13 +229,13 @@ export default function StatsPanel({ penaltyInfo, dailyData, isBlocked, isFullBl
   }
 
   /* ═══════════════════════════════════
-     GLASS THEME
+     GLASS + DARK THEME
      ═══════════════════════════════════ */
   return (
     <div className="space-y-4">
       {(isBlocked || isFullBlock) && (
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-          className="glass-card overflow-hidden">
+          className={isDark ? 'dark-card overflow-hidden' : 'glass-card overflow-hidden'}>
           <div className={`p-5 ${isFullBlock
             ? 'bg-gradient-to-r from-red-500/10 to-red-600/5 border-l-4 border-red-500'
             : 'bg-gradient-to-r from-orange-500/10 to-orange-600/5 border-l-4 border-orange-500'}`}>
@@ -248,7 +245,7 @@ export default function StatsPanel({ penaltyInfo, dailyData, isBlocked, isFullBl
                 <p className={`text-sm font-bold ${isFullBlock ? 'text-red-700' : 'text-orange-700'}`}>
                   {isFullBlock ? 'This Day is Fully Blocked' : `${blockedMinutes} Min Blocked`}
                 </p>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
                   {isFullBlock ? 'Penalty carried from previous day — no screen time allowed' : `Limit reduced from 60 → ${effectiveLimit} min`}
                 </p>
               </div>
@@ -260,10 +257,10 @@ export default function StatsPanel({ penaltyInfo, dailyData, isBlocked, isFullBl
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Ring */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
-          className="glass-card p-6 flex flex-col items-center justify-center">
+          className={`${isDark ? 'dark-card' : 'glass-card'} p-6 flex flex-col items-center justify-center`}>
           <div className="relative w-36 h-36 mb-4">
             <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
-              <circle cx="60" cy="60" r="52" fill="none" stroke="#f3f4f6" strokeWidth="7" />
+              <circle cx="60" cy="60" r="52" fill="none" stroke={isDark ? '#252540' : '#f3f4f6'} strokeWidth="7" />
               <motion.circle cx="60" cy="60" r="52" fill="none"
                 stroke={isOver ? '#FF3B30' : '#34C759'} strokeWidth="7" strokeLinecap="round"
                 strokeDasharray={`${2 * Math.PI * 52}`}
@@ -273,14 +270,14 @@ export default function StatsPanel({ penaltyInfo, dailyData, isBlocked, isFullBl
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <motion.span key={totalTime} initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                className={`text-3xl font-extrabold tracking-tight ${isOver ? 'text-red-500' : 'text-gray-900'}`}>
+                className={`text-3xl font-extrabold tracking-tight ${isOver ? 'text-red-500' : (isDark ? 'text-white' : 'text-gray-900')}`}>
                 {totalTime}
               </motion.span>
-              <span className="text-[10px] text-gray-400 font-semibold">of {effectiveLimit} min</span>
+              <span className={`text-[10px] font-semibold ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>of {effectiveLimit} min</span>
             </div>
           </div>
-          <p className="text-sm font-bold text-gray-900">Total Usage</p>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Total Usage</p>
+          <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
             {isOver ? `${excessTime} min over limit` : `${bonusTime} min remaining`}
           </p>
           {blockedMinutes > 0 && !isFullBlock && (
@@ -292,16 +289,16 @@ export default function StatsPanel({ penaltyInfo, dailyData, isBlocked, isFullBl
 
         {/* Bar Chart */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }} className="glass-card p-6 flex flex-col">
+          transition={{ duration: 0.5, delay: 0.1 }} className={`${isDark ? 'dark-card' : 'glass-card'} p-6 flex flex-col`}>
           <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="w-4 h-4 text-gray-400" />
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Breakdown</p>
+            <BarChart3 className={`w-4 h-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
+            <p className={`text-xs font-bold uppercase tracking-widest ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Breakdown</p>
           </div>
           <div className="flex-1 flex items-end gap-3 justify-center pb-2">
             {barData.map((bar, i) => (
               <div key={i} className="flex flex-col items-center gap-2 flex-1">
-                <span className="text-xs font-bold text-gray-600">{bar.value}</span>
-                <div className="w-full bg-gray-100 rounded-xl overflow-hidden flex flex-col justify-end" style={{ height: '100px' }}>
+                <span className={`text-xs font-bold ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>{bar.value}</span>
+                <div className={`w-full rounded-xl overflow-hidden flex flex-col justify-end ${isDark ? 'bg-[#252540]' : 'bg-gray-100'}`} style={{ height: '100px' }}>
                   <motion.div initial={{ height: 0 }}
                     animate={{ height: `${Math.min(100, bar.percent)}%` }}
                     transition={{ duration: 0.8, delay: 0.2 + i * 0.1, ease: 'easeOut' }}
@@ -310,7 +307,7 @@ export default function StatsPanel({ penaltyInfo, dailyData, isBlocked, isFullBl
                       i === 1 ? 'bg-gradient-to-t from-purple-500 to-pink-400' :
                       'bg-gradient-to-t from-orange-500 to-amber-400'}`} />
                 </div>
-                <span className="text-[10px] font-semibold text-gray-400 uppercase">{bar.label}</span>
+                <span className={`text-[10px] font-semibold uppercase ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{bar.label}</span>
               </div>
             ))}
           </div>
@@ -318,18 +315,18 @@ export default function StatsPanel({ penaltyInfo, dailyData, isBlocked, isFullBl
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <GlassStatCard label="Limit" value={effectiveLimit} unit="min" icon={Gift}
+        <GlassStatCard isDark={isDark} label="Limit" value={effectiveLimit} unit="min" icon={Gift}
           gradient={blockedMinutes > 0 && !isFullBlock ? 'from-orange-400 to-amber-500' : 'from-green-400 to-emerald-500'}
           delay={0.1} accent={effectiveLimit < 60 ? 'text-orange-500' : 'text-green-600'} />
-        <GlassStatCard label="Bonus" value={bonusTime} unit="min" icon={Gift}
+        <GlassStatCard isDark={isDark} label="Bonus" value={bonusTime} unit="min" icon={Gift}
           gradient="from-green-400 to-emerald-500" delay={0.15}
-          accent={bonusTime > 0 ? 'text-green-600' : 'text-gray-300'} />
-        <GlassStatCard label="Excess" value={excessTime} unit="min" icon={TrendingUp}
+          accent={bonusTime > 0 ? 'text-green-600' : (isDark ? 'text-gray-600' : 'text-gray-300')} />
+        <GlassStatCard isDark={isDark} label="Excess" value={excessTime} unit="min" icon={TrendingUp}
           gradient="from-amber-400 to-orange-500" delay={0.2}
-          accent={excessTime > 0 ? 'text-orange-500' : 'text-gray-300'} />
-        <GlassStatCard label="Penalty" value={penaltyMinutes} unit="min" icon={AlertTriangle}
+          accent={excessTime > 0 ? 'text-orange-500' : (isDark ? 'text-gray-600' : 'text-gray-300')} />
+        <GlassStatCard isDark={isDark} label="Penalty" value={penaltyMinutes} unit="min" icon={AlertTriangle}
           gradient="from-red-400 to-rose-500" delay={0.25}
-          accent={penaltyMinutes > 0 ? 'text-red-500' : 'text-gray-300'} />
+          accent={penaltyMinutes > 0 ? 'text-red-500' : (isDark ? 'text-gray-600' : 'text-gray-300')} />
       </div>
 
       <PenaltyBreakdown />

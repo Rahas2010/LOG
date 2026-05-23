@@ -29,7 +29,7 @@ interface WeeklyChartProps {
 }
 
 export default function WeeklyChart({ stats }: WeeklyChartProps) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const isGlass = theme === 'glass';
 
   const maxVal = useMemo(() => {
@@ -81,7 +81,7 @@ export default function WeeklyChart({ stats }: WeeklyChartProps) {
   ];
 
   /* ══════ CLASSIC ══════ */
-  if (!isGlass) {
+  if (!isGlass && !isDark) {
     return (
       <div className="bg-white border border-[#e5e5e5] rounded-xl p-7">
         <div className="mb-6">
@@ -89,7 +89,6 @@ export default function WeeklyChart({ stats }: WeeklyChartProps) {
           <p className="text-sm text-[#666] mt-0.5">Last 7 days performance</p>
         </div>
 
-        {/* Summary */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           {summaryCards.map((card, i) => (
             <div key={i} className={`${card.classicBg} border border-[#e5e5e5] rounded-lg p-3`}>
@@ -105,7 +104,6 @@ export default function WeeklyChart({ stats }: WeeklyChartProps) {
           ))}
         </div>
 
-        {/* Bar Chart */}
         <div className="border-t border-[#e5e5e5] pt-5">
           <div className="flex items-end justify-between gap-2" style={{ height: '180px' }}>
             {stats.days.map((day, i) => {
@@ -115,10 +113,8 @@ export default function WeeklyChart({ stats }: WeeklyChartProps) {
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full">
                   <div className="relative flex-1 w-full flex items-end justify-center">
-                    {/* Limit line */}
                     <div className="absolute w-full border-t border-dashed border-[#0f0f0f]/20"
                       style={{ bottom: `${limitHeight}%` }} />
-                    {/* Total bar */}
                     {day.hasData && (
                       <motion.div
                         initial={{ height: 0 }}
@@ -129,7 +125,6 @@ export default function WeeklyChart({ stats }: WeeklyChartProps) {
                         }`}
                       />
                     )}
-                    {/* Penalty indicator */}
                     {day.penaltyMinutes > 0 && (
                       <div className="absolute -top-5 text-[9px] font-bold text-[#ef4444]">
                         -{day.penaltyMinutes}
@@ -147,7 +142,6 @@ export default function WeeklyChart({ stats }: WeeklyChartProps) {
             })}
           </div>
 
-          {/* Legend */}
           <div className="flex items-center justify-center gap-5 mt-5 text-xs text-[#666]">
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 bg-[#0f0f0f] rounded-sm" />
@@ -167,43 +161,45 @@ export default function WeeklyChart({ stats }: WeeklyChartProps) {
     );
   }
 
-  /* ══════ GLASS ══════ */
+  /* ══════ GLASS + DARK ══════ */
   return (
-    <div className="glass-card p-6 md:p-8">
+    <div className={`${isDark ? 'dark-card' : 'glass-card'} p-6 md:p-8`}>
       <div className="mb-6">
         <div className="flex items-center gap-2.5 mb-1">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-md shadow-blue-500/20">
             <TrendingUp className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-gray-900">Weekly Overview</h3>
-            <p className="text-xs text-gray-400 font-medium">Last 7 days performance</p>
+            <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Weekly Overview</h3>
+            <p className={`text-xs font-medium ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Last 7 days performance</p>
           </div>
         </div>
       </div>
 
-      {/* Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         {summaryCards.map((card, i) => (
           <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
-            className="bg-white/60 rounded-2xl p-3 border border-gray-200/50">
+            className={`rounded-2xl p-3 border ${
+              isDark
+                ? 'bg-[#252540]/60 border-[#2a2a3e]'
+                : 'bg-white/60 border-gray-200/50'
+            }`}>
             <div className="flex items-center gap-2 mb-2">
               <div className={`w-6 h-6 rounded-lg bg-gradient-to-br ${card.gradient} flex items-center justify-center`}>
                 <card.icon className="w-3 h-3 text-white" />
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">{card.label}</span>
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{card.label}</span>
             </div>
             <div className="flex items-baseline gap-1">
-              <span className="text-xl font-extrabold text-gray-900">{card.value}</span>
-              <span className="text-[10px] text-gray-400 font-medium">{card.unit}</span>
+              <span className={`text-xl font-extrabold ${isDark ? 'text-white' : 'text-gray-900'}`}>{card.value}</span>
+              <span className={`text-[10px] font-medium ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{card.unit}</span>
             </div>
           </motion.div>
         ))}
       </div>
 
-      {/* Chart */}
-      <div className="border-t border-gray-200/50 pt-5">
+      <div className={`border-t pt-5 ${isDark ? 'border-[#2a2a3e]' : 'border-gray-200/50'}`}>
         <div className="flex items-end justify-between gap-2" style={{ height: '180px' }}>
           {stats.days.map((day, i) => {
             const totalHeight = maxVal > 0 ? (day.totalTime / maxVal) * 100 : 0;
@@ -212,10 +208,8 @@ export default function WeeklyChart({ stats }: WeeklyChartProps) {
             return (
               <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full">
                 <div className="relative flex-1 w-full flex items-end justify-center">
-                  {/* Limit line */}
-                  <div className="absolute w-full border-t border-dashed border-gray-400/40"
+                  <div className={`absolute w-full border-t border-dashed ${isDark ? 'border-gray-600/40' : 'border-gray-400/40'}`}
                     style={{ bottom: `${limitHeight}%` }} />
-                  {/* Total bar */}
                   {day.hasData && (
                     <motion.div
                       initial={{ height: 0 }}
@@ -239,19 +233,18 @@ export default function WeeklyChart({ stats }: WeeklyChartProps) {
                 </div>
                 <div className="text-center">
                   <div className={`text-xs font-bold ${
-                    day.isOnTime ? 'text-green-600' : day.hasData ? 'text-red-500' : 'text-gray-300'
+                    day.isOnTime ? 'text-green-600' : day.hasData ? 'text-red-500' : (isDark ? 'text-gray-700' : 'text-gray-300')
                   }`}>
                     {day.totalTime || '–'}
                   </div>
-                  <div className="text-[10px] text-gray-400 font-semibold">{day.dayName}</div>
+                  <div className={`text-[10px] font-semibold ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{day.dayName}</div>
                 </div>
               </div>
             );
           })}
         </div>
 
-        {/* Legend */}
-        <div className="flex items-center justify-center gap-5 mt-6 text-xs text-gray-500">
+        <div className={`flex items-center justify-center gap-5 mt-6 text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 bg-gradient-to-t from-green-500 to-emerald-400 rounded-sm" />
             <span className="font-medium">On-time</span>
@@ -261,7 +254,7 @@ export default function WeeklyChart({ stats }: WeeklyChartProps) {
             <span className="font-medium">Over limit</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-6 border-t border-dashed border-gray-400/60" />
+            <div className={`w-6 border-t border-dashed ${isDark ? 'border-gray-600/60' : 'border-gray-400/60'}`} />
             <span className="font-medium">Daily limit</span>
           </div>
         </div>

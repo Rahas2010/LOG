@@ -23,7 +23,7 @@ const MONTH_NAMES = [
 export default function Calendar({
   month, year, selectedDate, blockedDates, onSelectDate, onChangeMonth
 }: CalendarProps) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const isGlass = theme === 'glass';
   const todayKey = getDateKey(new Date());
 
@@ -67,10 +67,10 @@ export default function Calendar({
     return 'partial';
   };
 
-  const weekdays = isGlass ? WEEKDAYS_SHORT : WEEKDAYS_FULL;
+  const weekdays = (isGlass || isDark) ? WEEKDAYS_SHORT : WEEKDAYS_FULL;
 
   /* ───── CLASSIC THEME ───── */
-  if (!isGlass) {
+  if (!isGlass && !isDark) {
     return (
       <div className="bg-white border border-[#e5e5e5] rounded-xl p-7 transition-all duration-300">
         <div className="flex items-center justify-between mb-6">
@@ -149,29 +149,37 @@ export default function Calendar({
     );
   }
 
-  /* ───── GLASS THEME ───── */
+  /* ───── GLASS + DARK THEME ───── */
   return (
-    <div className="glass-card p-6 md:p-8">
+    <div className={isDark ? 'dark-card p-6 md:p-8' : 'glass-card p-6 md:p-8'}>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-gray-900">{MONTH_NAMES[month]}</h2>
-          <p className="text-sm text-gray-400 font-medium mt-0.5">{year}</p>
+          <h2 className={`text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>{MONTH_NAMES[month]}</h2>
+          <p className={`text-sm font-medium mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{year}</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={prevMonth}
-            className="w-10 h-10 rounded-full flex items-center justify-center bg-white/60 hover:bg-white border border-gray-200/50 transition-all duration-200 hover:scale-105 active:scale-95">
-            <ChevronLeft className="w-4 h-4 text-gray-600" />
+            className={`w-10 h-10 rounded-full flex items-center justify-center border transition-all duration-200 hover:scale-105 active:scale-95 ${
+              isDark
+                ? 'bg-[#252540] hover:bg-[#2a2a4a] border-[#2a2a3e]'
+                : 'bg-white/60 hover:bg-white border-gray-200/50'
+            }`}>
+            <ChevronLeft className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
           </button>
           <button onClick={nextMonth}
-            className="w-10 h-10 rounded-full flex items-center justify-center bg-white/60 hover:bg-white border border-gray-200/50 transition-all duration-200 hover:scale-105 active:scale-95">
-            <ChevronRight className="w-4 h-4 text-gray-600" />
+            className={`w-10 h-10 rounded-full flex items-center justify-center border transition-all duration-200 hover:scale-105 active:scale-95 ${
+              isDark
+                ? 'bg-[#252540] hover:bg-[#2a2a4a] border-[#2a2a3e]'
+                : 'bg-white/60 hover:bg-white border-gray-200/50'
+            }`}>
+            <ChevronRight className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-7 gap-1 mb-2">
         {weekdays.map((day, i) => (
-          <div key={i} className="text-center text-xs font-semibold text-gray-400 py-2 uppercase tracking-wider">{day}</div>
+          <div key={i} className={`text-center text-xs font-semibold py-2 uppercase tracking-wider ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{day}</div>
         ))}
       </div>
 
@@ -187,14 +195,14 @@ export default function Calendar({
               className={`
                 relative aspect-square rounded-2xl flex flex-col items-center justify-center text-sm font-medium
                 transition-all duration-200 cursor-pointer
-                ${!isCurrentMonth ? 'text-gray-300 cursor-default' : ''}
-                ${isCurrentMonth && !isSelected && !blockInfo ? 'text-gray-700 hover:bg-white/80' : ''}
-                ${isSelected && !blockInfo ? 'bg-gray-900 text-white shadow-lg shadow-gray-900/20' : ''}
+                ${!isCurrentMonth ? (isDark ? 'text-gray-700 cursor-default' : 'text-gray-300 cursor-default') : ''}
+                ${isCurrentMonth && !isSelected && !blockInfo ? (isDark ? 'text-gray-300 hover:bg-[#252540]' : 'text-gray-700 hover:bg-white/80') : ''}
+                ${isSelected && !blockInfo ? (isDark ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'bg-gray-900 text-white shadow-lg shadow-gray-900/20') : ''}
                 ${isSelected && blockInfo === 'full' ? 'bg-red-500 text-white shadow-lg shadow-red-500/25' : ''}
                 ${isSelected && blockInfo === 'partial' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/25' : ''}
-                ${!isSelected && blockInfo === 'full' ? 'bg-red-50 text-red-600 border border-red-200/60' : ''}
-                ${!isSelected && blockInfo === 'partial' ? 'bg-orange-50 text-orange-600 border border-orange-200/60' : ''}
-                ${isToday && !isSelected ? 'ring-2 ring-gray-900/20 ring-offset-1' : ''}
+                ${!isSelected && blockInfo === 'full' ? (isDark ? 'bg-red-500/15 text-red-400 border border-red-500/30' : 'bg-red-50 text-red-600 border border-red-200/60') : ''}
+                ${!isSelected && blockInfo === 'partial' ? (isDark ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30' : 'bg-orange-50 text-orange-600 border border-orange-200/60') : ''}
+                ${isToday && !isSelected ? (isDark ? 'ring-2 ring-indigo-500/40 ring-offset-1 ring-offset-[#1a1a2e]' : 'ring-2 ring-gray-900/20 ring-offset-1') : ''}
               `}>
               <span className="relative z-10">{date.getDate()}</span>
               {blockInfo && !isSelected && (
@@ -205,22 +213,24 @@ export default function Calendar({
         })}
       </div>
 
-      <div className="flex items-center gap-5 mt-6 pt-5 border-t border-gray-100">
+      <div className={`flex items-center gap-5 mt-6 pt-5 border-t ${isDark ? 'border-[#2a2a3e]' : 'border-gray-100'}`}>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-gray-900" />
-          <span className="text-xs text-gray-500 font-medium">Selected</span>
+          <div className={`w-3 h-3 rounded-full ${isDark ? 'bg-indigo-600' : 'bg-gray-900'}`} />
+          <span className={`text-xs font-medium ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Selected</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-red-400" />
-          <span className="text-xs text-gray-500 font-medium">Full Block</span>
+          <span className={`text-xs font-medium ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Full Block</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-orange-400" />
-          <span className="text-xs text-gray-500 font-medium">Partial</span>
+          <span className={`text-xs font-medium ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Partial</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full ring-2 ring-gray-900/30 ring-offset-1 bg-transparent" />
-          <span className="text-xs text-gray-500 font-medium">Today</span>
+          <div className={`w-3 h-3 rounded-full ring-2 ring-offset-1 bg-transparent ${
+            isDark ? 'ring-indigo-500/40 ring-offset-[#1a1a2e]' : 'ring-gray-900/30'
+          }`} />
+          <span className={`text-xs font-medium ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Today</span>
         </div>
       </div>
     </div>
