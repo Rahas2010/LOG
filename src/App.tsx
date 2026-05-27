@@ -16,6 +16,7 @@ import { ThemeProvider, useTheme } from './ThemeContext';
 import { AuthProvider, useAuth } from './AuthContext';
 import { useStore, getDateKey } from './useStore';
 import { CLOUD_ENABLED } from './db/supabase';
+import { Analytics } from '@vercel/analytics/react';
 
 function Dashboard() {
   const { theme } = useTheme();
@@ -347,6 +348,7 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <AppInner />
+        <Analytics />
       </AuthProvider>
     </ThemeProvider>
   );
